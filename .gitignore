@@ -1,0 +1,9 @@
+# Python cache
+**/__pycache__/
+
+# Local ignore folder
+ignore/
+
+# Output folders
+outputs/frames_output/
+outputs/inference_outputs/

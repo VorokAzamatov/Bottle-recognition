@@ -1,0 +1,21 @@
+# === GENERAL ===
+general:
+  video_source: 'videos/video.mp4'
+  frames_path: 'outputs/frames_output/frames.png'
+
+# === SCAN ===
+scan:
+  verbose: True
+  vizualize: True
+  strip_width: 130
+  resize_factor: 0.35
+
+
+# === INFERENCE ===
+infer:
+  delay: 30
+  threshold: 0.9
+  ref_frame_id: 74
+  strip_width: 130
+  resize_factor: 0.35
+  output_path: 'outputs/inference_outputs/infer_outputs.json'
