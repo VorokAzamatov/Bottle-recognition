@@ -6,7 +6,6 @@ import json
 from src.img_processing.match import match
 from src.img_processing.resize import resize
 from src.img_processing.strip_frame import strip_frame
-from src.utils.get_target_frame import get_target_frame
 
 
 
@@ -23,13 +22,13 @@ class FrameSource(object):
 
         self.live_mode = self._live_mode(video_source)
         if not self.live_mode:
-            self._get_frames_from_vid(self.resize_factor)
+            self._get_frames_from_vid()
 
 
     # -------------------------
     # internal
     # -------------------------
-    def _get_frames_from_vid(self, resize_factor):
+    def _get_frames_from_vid(self):
         self.frames = []
 
         while True:
@@ -81,33 +80,38 @@ class FrameSource(object):
         if not self.live_mode:
             self.idx = max(self.idx - 1, 0)
 
+    def release(self):
+        self.cap.release()
 
 
-def vizualization(stripped_frame, frame_idx, matched, match_score):
+def vizualization(frame, frame_idx, results):
+    matched = results[frame_idx]['matched']
+
+
     color = (0, 255, 0) if matched else (0, 0, 255)
     font_scale = 0.55
     border_thickness = 3
     text_thickness = 2
 
-    vis = stripped_frame.copy()
+    vis = frame.copy()
 
     cv2.rectangle(vis, (0, 0), (vis.shape[1], vis.shape[0]), color, border_thickness)
 
-    cv2.putText(vis, f"Frame: {frame_idx}", (10, 25),
-                cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, text_thickness)
-    cv2.putText(vis, f"Score: {match_score:.3f}", (10, 50),
-                cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, text_thickness)
+
+    for i, var_name in enumerate(['current_score', 'current_angle', 'target_angle', 'delta_angle', 'steps']):
+        var_value = results[frame_idx][var_name]
+        cv2.putText(vis, f"{var_name}: {var_value}", 
+                    (10, (i+1)*25), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, text_thickness)
 
     cv2.imshow('Current frame', vis)
 
 
-def save_results(output_path, res_per_frame_dict, matched_frames_list):
+def save_results(output_path, results):
     return_dir = os.path.dirname(output_path)
     os.makedirs(return_dir, exist_ok=True)
 
     data = {
-        'res_per_frame_dict': res_per_frame_dict, 
-        'matched_frames_list': matched_frames_list 
+        'results': results
     }
     with open(output_path, 'w') as f:
         json.dump(data, f)
@@ -118,40 +122,106 @@ def save_results(output_path, res_per_frame_dict, matched_frames_list):
         print(f"Результаты не были сохранены!: {output_path}")
 
 
+def angle_2_steps(angle, steps_per_rev):
+    return int( round( angle * steps_per_rev / 360 ) )
 
 
-def run_comparison(video_source, frames_path, resize_factor, ref_frame_id, strip_width, threshold, delay):
-    target_frame = get_target_frame(frames_path, ref_frame_id, strip_width)
-    target_frame_width = target_frame.shape[1]
+def x_2_angle(x, frames_width):
+    return (x / frames_width) * 360
 
-    res_per_frame_dict = {}
-    matched_frames_list = []
+
+def compute_delta_angle(current_angle, target_angle):
+    delta = target_angle - current_angle
+
+    if delta > 180:
+        delta -= 360
+    elif delta < -180:  
+        delta += 360
+
+    return delta
+
+
+def find_position(frame, frames_gray, last_x=None, roi_width=200): 
+    frames_width = frames_gray.shape[1]
+
+    strip_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) 
+    
+    if last_x is None:
+        roi = frames_gray
+        roi_offset = 0
+    else:
+        x_min = max(0, last_x - roi_width)
+        x_max = min(frames_gray.shape[1], last_x + roi_width + strip_gray.shape[1])
+        roi = frames_gray[:, x_min:x_max]
+        roi_offset = x_min  # для коррекции координаты после поиска
+
+    result = cv2.matchTemplate(roi, strip_gray, cv2.TM_CCOEFF_NORMED)
+    _, max_val, _, max_loc = cv2.minMaxLoc(result)
+    x = max_loc[0] + roi_offset  # корректируем относительно всей развертки
+    current_angle = x_2_angle(x, frames_width)
+
+    return current_angle, x
+
+
+def run_inference(config):
+    target_frame_path = config['general']['target_frame_save_path']
+    resize_factor = config['general']['resize_factor'] 
+    video_source = config['general']['video_source']
+    frames_path = config['general']['frames_path']
+    strip_width = config['general']['strip_width']
+    steps_per_rev = config['infer']['steps_per_rev']
+    down_scale = config['infer']['down_scale']
+    threshold = config['infer']['threshold'] 
+    roi_width = config['infer']['roi_width']
+    delay = config['infer']['delay']
+
 
     source = FrameSource(video_source, resize_factor)
+
+    results = {}
+
+    frames = cv2.imread(frames_path)
+    frames = cv2.resize(frames, None, fx=down_scale, fy=down_scale)
+    frames_gray = cv2.cvtColor(frames, cv2.COLOR_BGR2GRAY) 
+
+    target_frame = cv2.imread(target_frame_path)
+    target_frame = cv2.resize(target_frame, None, fx=down_scale, fy=down_scale)
+    target_angle, _ = find_position(target_frame, frames_gray)
+
+    last_x = None
+    strip_width = int(strip_width * down_scale)
 
     frame_idx = 0
     paused = False
     while True:
-
         success, frame = source.read()
         if not success:
             break
 
+        resized_frame = cv2.resize(frame, None, fx=down_scale, fy=down_scale)
+        stripped_frame = strip_frame(resized_frame, strip_width)
 
-        stripped_frame = strip_frame(frame, target_frame_width)
+        matched, current_score = match(target_frame, stripped_frame, threshold)
 
-        matched, match_score = match(target_frame, stripped_frame, threshold=threshold)
-        if matched:
-            matched_frames_list.append(frame_idx)
-        res_per_frame_dict[frame_idx] = {
-            "matched": bool(matched),
-            "score": float(match_score)
+        current_angle, x = find_position(stripped_frame, frames_gray, last_x, roi_width)
+        last_x = x
+
+        delta_angle = compute_delta_angle(current_angle, target_angle)
+        steps = angle_2_steps(delta_angle, steps_per_rev=steps_per_rev)
+
+
+        results[frame_idx] = {
+            'matched': 1 if matched else 0,
+            'current_angle': round(current_angle, 4), 
+            'current_score': round(current_score.item(), 4), 
+            'target_angle': round(target_angle, 4), 
+            'delta_angle': round(delta_angle, 4), 
+            'threshold': threshold,
+            'steps': steps
         }
-        print(f"[Frame {frame_idx}] matched={matched} score={match_score:.4f}")
-        
 
-        vizualization(stripped_frame, frame_idx, matched, match_score)
-
+        print(results[frame_idx])    
+        vizualization(frame, frame_idx, results)
 
         key = cv2.waitKey(delay if not paused else 0) & 0xFF
         if key == ord('q'):
@@ -168,7 +238,7 @@ def run_comparison(video_source, frames_path, resize_factor, ref_frame_id, strip
             source.next()
             frame_idx += 1
 
-    source.cap.release()
+    source.release()
     cv2.destroyAllWindows()
 
-    return res_per_frame_dict, matched_frames_list
+    return results

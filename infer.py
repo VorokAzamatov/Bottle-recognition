@@ -1,34 +1,24 @@
 import click
 
-from src.infer.pipeline import save_results
-from src.infer.pipeline import run_comparison
+from src.utils.plot import build_plot
 from src.utils.init_config import init_config
-
+from src.infer.pipeline import run_inference
+from src.infer.pipeline import save_results
 
 
 @click.command()
-@click.option('--use_config', '-cfg', type=bool,default=False, help="Use parameters from config file")
-@click.option('--strip_width', '-sw', type=int, help="Strip width")
-@click.option('--video_source', '-vp', help="Video source for match")
-@click.option('--ref_frame_id', '-ri', help="Reference frame id ")
-@click.option('--threshold', '-t', default=0.7, type=float, help="Minimum match threshold")
-@click.option('--resize_factor', '-rf', default=1, type=float, help="Resize factor for size adjustment")
-@click.option('--delay', '-d', default=30, type=int, help="Playback delay")
+@click.option('--use_config', '-cfg', type=bool, default=False, help="Use parameters from config file")
+@click.option('--plot', '-p', default=True, type=bool, help="build a frame-by-frame match-score plot at the end")
 
-def main(use_config, video_source, ref_frame_id, strip_width, resize_factor, threshold, delay):
-    frames_path = 'outputs/frames_output/frames.png'
+def main(use_config, plot):
     output_path = 'outputs/inference_outputs/infer_outputs.json'
 
     if use_config:
         config = init_config()
 
-        video_source = config['general']['video_source']
-        threshold = config['infer']['threshold'] 
-        strip_width = config['infer']['strip_width']
-        resize_factor = config['infer']['resize_factor'] 
-        ref_frame_id = config['infer']['ref_frame_id'] 
-        frames_path = config['general']['frames_path']
+        plot = config['infer']['plot']
         output_path = config['infer']['output_path']
+
 
     else:
         print("Введите нужные параметры запуска или используйте параметры в 'configs/config.yaml' и значение '--use_config True'")
@@ -36,13 +26,13 @@ def main(use_config, video_source, ref_frame_id, strip_width, resize_factor, thr
         return
 
 
-
-
-    res_per_frame_dict, matched_frames_list = run_comparison(video_source, frames_path, resize_factor, ref_frame_id, strip_width, threshold, delay)
-
+    results = run_inference(config)
 
     if output_path:
-        save_results(output_path, res_per_frame_dict, matched_frames_list)
+        save_results(output_path, results)
+    
+    if plot:
+        build_plot()
 
 
 
