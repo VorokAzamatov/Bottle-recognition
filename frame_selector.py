@@ -1,10 +1,14 @@
 import cv2
 
+import os
+
 from src.utils.init_config import init_config
+from src.utils.get_target_from_frames import get_target_from_frames
 
 
 def main():
     config = init_config()
+    target_frame_save_path = config['general']['target_frame_save_path']
     frames_img_path = config['general']['frames_path']
     strip_width = config['infer']['strip_width']
 
@@ -32,6 +36,20 @@ def main():
             frame_idx += 1
         elif key == ord('p'):
             frame_idx -= 1
+        elif key == ord(' '):
+            target_frame = get_target_from_frames(frames_img_path, frame_idx, strip_width)
+
+            print(f"Целевой кадр: {frame_idx}")
+
+            cv2.imwrite(target_frame_save_path, target_frame)
+            if os.path.exists(target_frame_save_path):
+                print(f"Целевой кадр успешно сохранен: {target_frame_save_path}")
+            else:
+                print(f"Целевой кадр не был сохранен!: {target_frame_save_path}")
+            
+            print('Чтобы выйти нажмите "q"')
+
+            
 
     cv2.destroyAllWindows()
 
