@@ -8,9 +8,9 @@ from src.utils.get_target_from_frames import get_target_from_frames
 
 def main():
     config = init_config()
-    target_frame_save_path = config['general']['target_frame_save_path']
+    target_frame_save_path = config['general']['target_frame_path']
     frames_img_path = config['general']['frames_path']
-    strip_width = config['infer']['strip_width']
+    strip_width = config['general']['strip_width']
 
 
     frames_img = cv2.imread(frames_img_path)

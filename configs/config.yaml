@@ -2,7 +2,7 @@
 general:
   video_source: 'videos/video.mp4'
   frames_path: 'outputs/frames_output/frames.png'
-  target_frame_save_path: 'outputs/frames_output/target_frame.png'
+  target_frame_path: 'outputs/frames_output/target_frame.png'
   resize_factor: 0.35 # '1' not to use
   strip_width: 130
 
@@ -14,10 +14,11 @@ scan:
 
 # === INFERENCE ===
 infer:
-  delay: 30
-  plot: True
-  threshold: 1
-  roi_width: 200
-  down_scale: 1 # '1' not to use
-  steps_per_rev: 200
   output_path: 'outputs/inference_outputs/infer_outputs.json'
+  steps_per_rev: 200
+  show_strip: True
+  roi_width: 200
+  threshold: 0.8
+  down_scale: 1 # '1' not to use
+  plot: True
+  delay: 30
