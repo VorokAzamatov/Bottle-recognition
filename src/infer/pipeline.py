@@ -168,18 +168,18 @@ def find_position(frame, frames_gray, last_x=None, roi_width=200):
         x_min = max(0, last_x - roi_width)
         x_max = min(frames_gray.shape[1], last_x + roi_width + strip_gray.shape[1])
         roi = frames_gray[:, x_min:x_max]
-        roi_offset = x_min  # для коррекции координаты после поиска
+        roi_offset = x_min
 
     result = cv2.matchTemplate(roi, strip_gray, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, max_loc = cv2.minMaxLoc(result)
-    x = max_loc[0] + roi_offset  # корректируем относительно всей развертки
+    x = max_loc[0] + roi_offset
     current_angle = x_2_angle(x, frames_width)
 
     return current_angle, x
 
 
 def run_inference(config):
-    target_frame_path = config['general']['target_frame_save_path']
+    target_frame_path = config['general']['target_frame_path']
     resize_factor = config['general']['resize_factor'] 
     video_source = config['general']['video_source']
     frames_path = config['general']['frames_path']
