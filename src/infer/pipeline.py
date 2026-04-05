@@ -84,7 +84,7 @@ class FrameSource(object):
         self.cap.release()
 
 
-def vizualization(frame, frame_idx, results):
+def vizualization(frame, frame_idx, strip_width, results, show_strip):
     matched = results[frame_idx]['matched']
 
 
@@ -102,6 +102,21 @@ def vizualization(frame, frame_idx, results):
         var_value = results[frame_idx][var_name]
         cv2.putText(vis, f"{var_name}: {var_value}", 
                     (10, (i+1)*25), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, text_thickness)
+        
+    if show_strip:
+        h, w = vis.shape[:2]
+
+        center_x = w // 2
+        start_x = center_x - strip_width // 2
+        end_x = center_x + strip_width // 2
+
+        cv2.rectangle(
+            vis,
+            (start_x, 0),
+            (end_x, h),
+            (255, 255, 0), 
+            2
+        )
 
     cv2.imshow('Current frame', vis)
 
@@ -169,11 +184,14 @@ def run_inference(config):
     video_source = config['general']['video_source']
     frames_path = config['general']['frames_path']
     strip_width = config['general']['strip_width']
+
     steps_per_rev = config['infer']['steps_per_rev']
     down_scale = config['infer']['down_scale']
+    show_strip = config['infer']['show_strip']
     threshold = config['infer']['threshold'] 
     roi_width = config['infer']['roi_width']
     delay = config['infer']['delay']
+
 
 
     source = FrameSource(video_source, resize_factor)
@@ -221,7 +239,7 @@ def run_inference(config):
         }
 
         print(results[frame_idx])    
-        vizualization(frame, frame_idx, results)
+        vizualization(frame, frame_idx, strip_width, results, show_strip)
 
         key = cv2.waitKey(delay if not paused else 0) & 0xFF
         if key == ord('q'):
