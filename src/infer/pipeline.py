@@ -1,12 +1,9 @@
 import cv2
 
-import os
-import json
-
 from src.img_processing.match import match
 from src.img_processing.resize import resize
 from src.img_processing.strip_frame import strip_frame
-
+from src.utils.angles import angle_2_steps, x_2_angle, compute_delta_angle
 
 
 class FrameSource(object):
@@ -119,41 +116,6 @@ def vizualization(frame, frame_idx, strip_width, results, show_strip):
         )
 
     cv2.imshow('Current frame', vis)
-
-
-def save_results(output_path, results):
-    return_dir = os.path.dirname(output_path)
-    os.makedirs(return_dir, exist_ok=True)
-
-    data = {
-        'results': results
-    }
-    with open(output_path, 'w') as f:
-        json.dump(data, f)
-
-    if os.path.exists(output_path):
-        print(f"Результаты успешно сохранены: {output_path}")
-    else:
-        print(f"Результаты не были сохранены!: {output_path}")
-
-
-def angle_2_steps(angle, steps_per_rev):
-    return int( round( angle * steps_per_rev / 360 ) )
-
-
-def x_2_angle(x, frames_width):
-    return (x / frames_width) * 360
-
-
-def compute_delta_angle(current_angle, target_angle):
-    delta = target_angle - current_angle
-
-    if delta > 180:
-        delta -= 360
-    elif delta < -180:  
-        delta += 360
-
-    return delta
 
 
 def find_position(frame, frames_gray, last_x=None, roi_width=200): 

@@ -1,9 +1,9 @@
 import click
 
+from src.utils.io import save_json
 from src.utils.plot import build_plot
 from src.utils.init_config import init_config
 from src.infer.pipeline import run_inference
-from src.infer.pipeline import save_results
 
 
 @click.command()
@@ -29,7 +29,7 @@ def main(use_config, plot):
     results = run_inference(config)
 
     if output_path:
-        save_results(output_path, results)
+        save_json(output_path, results)
     
     if plot:
         build_plot()
